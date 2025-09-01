@@ -17,22 +17,21 @@ import '../presentation/signals/audio_signals.dart';
 final getIt = GetIt.instance;
 
 Future<void> setupDependencyInjection() async {
-  // Repositories
-  getIt.registerLazySingleton<ContactRepository>(
-    () => LocalContactRepository(),
-  );
-  getIt.registerLazySingleton<ChatRepository>(() => LocalChatRepository());
-  getIt.registerLazySingleton<AIServiceRepository>(
-    () => MockAIServiceRepository(),
-  );
-  getIt.registerLazySingleton<AudioRepository>(
-    () => FlutterSoundAudioRepository(),
-  );
+  // Repositories - criar e inicializar instâncias
+  final localContactRepo = LocalContactRepository();
+  final localChatRepo = LocalChatRepository();
+  final audioRepo = FlutterSoundAudioRepository();
 
-  // Initialize repositories that need it
-  await getIt<LocalContactRepository>().init();
-  await getIt<LocalChatRepository>().init();
-  await getIt<FlutterSoundAudioRepository>().init();
+  // Inicializar repositórios que precisam
+  await localContactRepo.init();
+  await localChatRepo.init();
+  await audioRepo.init();
+
+  // Registrar repositórios
+  getIt.registerSingleton<ContactRepository>(localContactRepo);
+  getIt.registerSingleton<ChatRepository>(localChatRepo);
+  getIt.registerSingleton<AudioRepository>(audioRepo);
+  getIt.registerSingleton<AIServiceRepository>(MockAIServiceRepository());
 
   // Use Cases - Contacts
   getIt.registerLazySingleton(

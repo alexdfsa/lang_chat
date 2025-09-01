@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:language_chat/domain/entities/chat_conversation.dart';
 import 'package:language_chat/domain/entities/virtual_contact.dart';
 import 'package:language_chat/presentation/signals/audio_signals.dart';
 import 'package:language_chat/presentation/signals/chat_signals.dart';
@@ -29,7 +30,33 @@ class _ChatViewState extends State<ChatView> {
   @override
   void initState() {
     super.initState();
-    widget.chatSignals.startConversation(widget.contact);
+    _ensureConversationExists();
+  }
+
+  void _ensureConversationExists() {
+    print(
+      '🎬 Garantindo que conversa existe para ${widget.contact.name}',
+    ); // Debug
+
+    // Sempre criar uma conversa nova para garantir que funciona
+    final conversationId =
+        'conv_${widget.contact.id}_${DateTime.now().millisecondsSinceEpoch}';
+
+    final conversation = ChatConversation(
+      id: conversationId,
+      contactId: widget.contact.id,
+      contactName: widget.contact.name,
+      contactProfileImage: widget.contact.profileImage,
+      language: widget.contact.language,
+      messages: [],
+      createdAt: DateTime.now(),
+      lastMessageAt: DateTime.now(),
+    );
+
+    // Usar o método setCurrentConversation que já existe
+    widget.chatSignals.setCurrentConversation(conversation);
+
+    print('✅ Conversa garantida: $conversationId'); // Debug
   }
 
   @override
@@ -40,11 +67,15 @@ class _ChatViewState extends State<ChatView> {
 
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     }
   }
 
@@ -57,15 +88,28 @@ class _ChatViewState extends State<ChatView> {
       ),
       body: Column(
         children: [
+          // Debug info (remove depois que funcionar)
+          Container(
+            padding: const EdgeInsets.all(8),
+            color: Colors.green[50],
+            child: Watch((context) {
+              final currentConv = widget.chatSignals.currentConversation.value;
+              return Text(
+                'Debug: Conversa ${currentConv?.id ?? "NULA"} | Idioma: ${widget.contact.language}',
+                style: TextStyle(fontSize: 12, color: Colors.green[700]),
+              );
+            }),
+          ),
+
           // Messages area
           Expanded(
             child: Watch((context) {
               final messages = widget.chatSignals.messages.value;
 
-              // Auto-scroll when new messages arrive
-              WidgetsBinding.instance.addPostFrameCallback((_) {
+              // Auto-scroll when messages change
+              if (messages.isNotEmpty) {
                 _scrollToBottom();
-              });
+              }
 
               return MessageListWidget(
                 messages: messages,

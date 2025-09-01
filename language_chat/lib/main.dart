@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:language_chat/core/hive_cleanup_helper.dart';
 import 'core/dependency_injection.dart';
-import 'core/app_router.dart';
+
+// lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'core/dependency_injection.dart';
+import 'presentation/views/home_view.dart';
+import 'presentation/views/chat_view.dart';
+import 'presentation/views/create_contact_view.dart';
+import 'presentation/views/contact_details_view.dart';
+import 'domain/entities/virtual_contact.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,6 +23,9 @@ void main() async {
 
   // Initialize date formatting for Portuguese
   await initializeDateFormatting('pt_BR', null);
+
+  // Clean up corrupted data from Hive
+  await HiveCleanupHelper.cleanupCorruptedData();
 
   // Setup dependency injection
   await setupDependencyInjection();
@@ -24,16 +38,46 @@ class LanguageChatApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
+    return MaterialApp(
       title: 'Language Chat',
       debugShowCheckedModeBanner: false,
-      routerConfig: appRouter,
+      home: HomeView(contactSignals: getIt(), chatSignals: getIt()),
+      routes: {
+        '/home': (context) =>
+            HomeView(contactSignals: getIt(), chatSignals: getIt()),
+        '/chat': (context) {
+          final contact =
+              ModalRoute.of(context)!.settings.arguments as VirtualContact;
+          return ChatView(
+            contact: contact,
+            chatSignals: getIt(),
+            audioSignals: getIt(),
+          );
+        },
+        '/create-contact': (context) {
+          final editingContact =
+              ModalRoute.of(context)?.settings.arguments as VirtualContact?;
+          return CreateContactView(
+            contactSignals: getIt(),
+            editingContact: editingContact,
+          );
+        },
+        '/contact-details': (context) {
+          final contact =
+              ModalRoute.of(context)!.settings.arguments as VirtualContact;
+          return ContactDetailsView(
+            contact: contact,
+            contactSignals: getIt(),
+            chatSignals: getIt(),
+          );
+        },
+      },
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF128C7E),
           brightness: Brightness.light,
         ),
-        appBarTheme: const AppBarTheme(
+        appBarTheme: const AppBarThemeData(
           backgroundColor: Color(0xFF128C7E),
           foregroundColor: Colors.white,
           elevation: 1,
