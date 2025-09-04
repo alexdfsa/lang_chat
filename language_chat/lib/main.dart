@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:language_chat/core/hive_cleanup_helper.dart';
@@ -17,6 +18,9 @@ import 'domain/entities/virtual_contact.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize environment variables
+  await dotenv.load(fileName: ".env");
 
   // Initialize Hive
   await Hive.initFlutter();

@@ -148,7 +148,7 @@ class ChatSignals {
     }
 
     print(
-      '📤 Enviando mensagem: "$content" para ${contact.name} (${contact.language})',
+      '📤 Enviando mensagem para IA: "$content" (${contact.language})',
     ); // Debug
 
     _isSendingMessage.value = true;
@@ -174,35 +174,41 @@ class ChatSignals {
 
       print('✅ Mensagem do usuário adicionada'); // Debug
 
-      // Generate AI response directly (simplified)
-      await Future.delayed(const Duration(milliseconds: 800));
+      // Use the real AI service via use case
+      try {
+        print('🤖 Chamando IA real...'); // Debug
 
-      final aiResponse = _generateAIResponse(
-        conversation.id,
-        contact.language,
-        content,
-      );
+        await _sendMessageUseCase.call(
+          SendMessageParams(
+            message: userMessage,
+            contactId: contact.id,
+            language: contact.language,
+          ),
+        );
 
-      final updatedMessages = List<ChatMessage>.from(_messages.value);
-      updatedMessages.add(aiResponse);
-      _messages.value = updatedMessages;
+        print('✅ IA processou a mensagem'); // Debug
 
-      print('✅ Resposta da IA adicionada'); // Debug
+        // Reload messages to get AI response and any moderator tips
+        await loadMessages(conversation.id);
+      } catch (aiError) {
+        print('❌ Erro na IA real, usando fallback: $aiError'); // Debug
 
-      // Maybe add moderator tip (20% chance)
-      if (DateTime.now().millisecondsSinceEpoch % 5 == 0) {
-        final moderatorTip = _generateModeratorTip(
+        // Fallback to simple response if AI fails
+        final fallbackResponse = _generateSimpleFallback(
           conversation.id,
           contact.language,
         );
-        final finalMessages = List<ChatMessage>.from(_messages.value);
-        finalMessages.add(moderatorTip);
-        _messages.value = finalMessages;
 
-        print('✅ Dica do moderador adicionada'); // Debug
+        final updatedMessages = List<ChatMessage>.from(_messages.value);
+        updatedMessages.add(fallbackResponse);
+        _messages.value = updatedMessages;
+
+        // Show error to user
+        _error.value =
+            'IA temporariamente indisponível. Usando resposta básica.';
       }
     } catch (e) {
-      print('❌ Erro ao enviar mensagem: $e'); // Debug
+      print('❌ Erro geral ao enviar mensagem: $e'); // Debug
       _error.value = e.toString();
 
       // Remove the failed message from the list
@@ -218,6 +224,43 @@ class ChatSignals {
     }
   }
 
+  // Simplified fallback response generator
+  ChatMessage _generateSimpleFallback(String conversationId, String language) {
+    final responses = {
+      'Português': [
+        'Desculpe, estou com problema técnico. Como posso ajudá-lo?',
+        'Houve um erro, mas vamos continuar. O que você gostaria de praticar?',
+        'Problema temporário. Que tal continuarmos nossa conversa?',
+      ],
+      'Inglês': [
+        'Sorry, I\'m having technical issues. How can I help you?',
+        'There was an error, but let\'s continue. What would you like to practice?',
+        'Temporary problem. How about we continue our conversation?',
+      ],
+      'Espanhol': [
+        'Disculpa, tengo un problema técnico. ¿Cómo puedo ayudarte?',
+        'Hubo un error, pero continuemos. ¿Qué te gustaría practicar?',
+        'Problema temporal. ¿Qué tal si continuamos nuestra conversación?',
+      ],
+    };
+
+    final languageResponses = responses[language] ?? responses['Português']!;
+    final randomIndex =
+        DateTime.now().millisecondsSinceEpoch % languageResponses.length;
+
+    return ChatMessage(
+      id: 'fallback_${DateTime.now().millisecondsSinceEpoch}',
+      chatId: conversationId,
+      senderId: 'ai_contact',
+      content: languageResponses[randomIndex],
+      type: MessageType.text,
+      status: MessageStatus.delivered,
+      timestamp: DateTime.now(),
+      isFromUser: false,
+    );
+  }
+
+  // ADICIONE também este método atualizado para áudio
   Future<void> sendAudioMessage(
     String audioPath,
     VirtualContact contact,
@@ -227,11 +270,13 @@ class ChatSignals {
     final conversation = _currentConversation.value;
     if (conversation == null) return;
 
+    print('🎵 Enviando mensagem de áudio para IA'); // Debug
+
     _isSendingMessage.value = true;
     _error.value = null;
 
     try {
-      final message = ChatMessage(
+      final audioMessage = ChatMessage(
         id: 'audio_msg_${DateTime.now().millisecondsSinceEpoch}',
         chatId: conversation.id,
         senderId: 'user',
@@ -244,19 +289,37 @@ class ChatSignals {
       );
 
       // Add message optimistically
-      _messages.value = [..._messages.value, message];
+      final currentMessages = List<ChatMessage>.from(_messages.value);
+      currentMessages.add(audioMessage);
+      _messages.value = currentMessages;
 
-      // Simulate processing
-      await Future.delayed(const Duration(seconds: 2));
+      try {
+        // Use real AI service for audio
+        await _sendAudioMessageUseCase.call(
+          SendAudioMessageParams(
+            message: audioMessage,
+            audioPath: audioPath,
+            contactId: contact.id,
+            language: contact.language,
+          ),
+        );
 
-      // Add AI response
-      final aiResponse = _generateAIResponse(
-        conversation.id,
-        contact.language,
-        'áudio',
-      );
-      _messages.value = [..._messages.value, aiResponse];
+        // Reload messages to get transcription and AI response
+        await loadMessages(conversation.id);
+      } catch (aiError) {
+        print('❌ Erro na IA para áudio: $aiError'); // Debug
+
+        // Fallback response
+        final fallbackResponse = _generateSimpleFallback(
+          conversation.id,
+          contact.language,
+        );
+        final updatedMessages = List<ChatMessage>.from(_messages.value);
+        updatedMessages.add(fallbackResponse);
+        _messages.value = updatedMessages;
+      }
     } catch (e) {
+      print('❌ Erro ao enviar áudio: $e'); // Debug
       _error.value = e.toString();
     } finally {
       _isSendingMessage.value = false;
