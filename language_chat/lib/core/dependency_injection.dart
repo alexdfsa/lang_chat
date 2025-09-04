@@ -1,5 +1,6 @@
 // lib/core/dependency_injection.dart
 import 'package:get_it/get_it.dart';
+import 'package:language_chat/core/ai_factory.dart';
 import '../data/repositories/local_contact_repository.dart';
 import '../data/repositories/local_chat_repository.dart';
 import '../data/repositories/mock_ai_service_repository.dart';
@@ -17,22 +18,25 @@ import '../presentation/signals/audio_signals.dart';
 final getIt = GetIt.instance;
 
 Future<void> setupDependencyInjection() async {
-  // Repositories
-  getIt.registerLazySingleton<ContactRepository>(
-    () => LocalContactRepository(),
-  );
-  getIt.registerLazySingleton<ChatRepository>(() => LocalChatRepository());
-  getIt.registerLazySingleton<AIServiceRepository>(
-    () => MockAIServiceRepository(),
-  );
-  getIt.registerLazySingleton<AudioRepository>(
-    () => FlutterSoundAudioRepository(),
-  );
+  print('🚀 Configurando injeção de dependências...'); // Debug
 
-  // Initialize repositories that need it
-  await getIt<LocalContactRepository>().init();
-  await getIt<LocalChatRepository>().init();
-  await getIt<FlutterSoundAudioRepository>().init();
+  // Repositories - criar e inicializar instâncias
+  final localContactRepo = LocalContactRepository();
+  final localChatRepo = LocalChatRepository();
+  final audioRepo = FlutterSoundAudioRepository();
+
+  // Inicializar repositórios que precisam
+  await localContactRepo.init();
+  await localChatRepo.init();
+  await audioRepo.init();
+
+  // Registrar repositórios
+  getIt.registerSingleton<ContactRepository>(localContactRepo);
+  getIt.registerSingleton<ChatRepository>(localChatRepo);
+  getIt.registerSingleton<AudioRepository>(audioRepo);
+
+  // AI Service - usar factory para escolher implementação
+  getIt.registerSingleton<AIServiceRepository>(AIFactory.createAIService());
 
   // Use Cases - Contacts
   getIt.registerLazySingleton(
@@ -94,4 +98,6 @@ Future<void> setupDependencyInjection() async {
   getIt.registerLazySingleton(
     () => AudioSignals(audioRepository: getIt<AudioRepository>()),
   );
+
+  print('✅ Injeção de dependências configurada com sucesso'); // Debug
 }

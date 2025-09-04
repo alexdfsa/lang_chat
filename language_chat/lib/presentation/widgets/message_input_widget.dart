@@ -29,6 +29,11 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
   void initState() {
     super.initState();
     widget.audioSignals.requestPermissions();
+
+    // Sincronizar controller com signal
+    _controller.addListener(() {
+      widget.chatSignals.updateTypingMessage(_controller.text);
+    });
   }
 
   @override
@@ -58,7 +63,6 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
           final isRecording = widget.audioSignals.isRecording.value;
           final canRecord = widget.audioSignals.canRecord.value;
           final isSending = widget.chatSignals.isSendingMessage.value;
-          final canSend = widget.chatSignals.canSendMessage.value;
           final typingMessage = widget.chatSignals.typingMessage.value;
 
           if (isRecording) {
@@ -88,7 +92,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                     focusNode: _focusNode,
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
+                    textInputAction: TextInputAction.send,
                     decoration: const InputDecoration(
                       hintText: 'Digite sua mensagem...',
                       border: InputBorder.none,
@@ -97,12 +101,11 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                         vertical: 12,
                       ),
                     ),
-                    onChanged: (text) {
-                      widget.chatSignals.updateTypingMessage(text);
+                    onSubmitted: (text) {
+                      if (text.trim().isNotEmpty && !isSending) {
+                        _sendMessage();
+                      }
                     },
-                    onSubmitted: canSend && !isSending
-                        ? (_) => _sendMessage()
-                        : null,
                   ),
                 ),
               ),
@@ -112,7 +115,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
               // Send button
               Container(
                 decoration: BoxDecoration(
-                  color: canSend && !isSending
+                  color: _canSend() && !isSending
                       ? const Color(0xFF128C7E)
                       : Colors.grey,
                   shape: BoxShape.circle,
@@ -128,7 +131,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                           ),
                         )
                       : const Icon(Icons.send, color: Colors.white),
-                  onPressed: canSend && !isSending ? _sendMessage : null,
+                  onPressed: _canSend() && !isSending ? _sendMessage : null,
                 ),
               ),
             ],
@@ -136,6 +139,41 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
         }),
       ),
     );
+  }
+
+  bool _canSend() {
+    return _controller.text.trim().isNotEmpty;
+  }
+
+  void _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    print('🚀 Enviando mensagem: "$text"'); // Debug
+
+    try {
+      // Limpar campo imediatamente
+      _controller.clear();
+      widget.chatSignals.updateTypingMessage('');
+      _focusNode.unfocus();
+
+      // Enviar mensagem
+      await widget.chatSignals.sendMessage(text, widget.contact);
+
+      print('✅ Mensagem enviada com sucesso'); // Debug
+    } catch (e) {
+      print('❌ Erro ao enviar mensagem: $e'); // Debug
+
+      // Mostrar erro para o usuário
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao enviar mensagem: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildRecordingInterface() {
@@ -224,31 +262,35 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
   }
 
   void _startRecording() async {
-    // Gerar um path único para o arquivo de áudio
-    final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filePath = '${directory.path}/audio_$timestamp.aac';
+    print('🎤 Iniciando gravação'); // Debug
 
-    await widget.audioSignals.startRecording(filePath);
-  }
+    try {
+      // Gerar um path único para o arquivo de áudio
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filePath = '${directory.path}/audio_$timestamp.aac';
 
-  void _sendMessage() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+      await widget.audioSignals.startRecording(filePath);
 
-    _controller.clear();
-    widget.chatSignals.updateTypingMessage('');
-    _focusNode.unfocus();
-
-    await widget.chatSignals.sendMessage(text, widget.contact);
+      print('🎤 Gravação iniciada: $filePath'); // Debug
+    } catch (e) {
+      print('❌ Erro ao iniciar gravação: $e'); // Debug
+    }
   }
 
   void _sendAudioMessage() async {
-    final audioPath = await widget.audioSignals.stopRecording();
-    if (audioPath != null) {
-      await widget.chatSignals.sendAudioMessage(audioPath, widget.contact);
+    print('🎵 Enviando mensagem de áudio'); // Debug
+
+    try {
+      final audioPath = await widget.audioSignals.stopRecording();
+      if (audioPath != null) {
+        await widget.chatSignals.sendAudioMessage(audioPath, widget.contact);
+        print('✅ Mensagem de áudio enviada'); // Debug
+      }
+      widget.audioSignals.reset();
+    } catch (e) {
+      print('❌ Erro ao enviar áudio: $e'); // Debug
     }
-    widget.audioSignals.reset();
   }
 
   String _formatDuration(Duration duration) {
