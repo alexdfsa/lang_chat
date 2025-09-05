@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/presentation/signals/contact_signals.dart';
+import 'package:langchat/presentation/signals/contact_signals.dart';
 
 class FloatingActionMenu extends StatefulWidget {
   final ContactSignals contactSignals;

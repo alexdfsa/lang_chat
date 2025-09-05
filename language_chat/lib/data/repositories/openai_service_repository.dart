@@ -1,7 +1,6 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
-import 'package:language_chat/domain/repositories/ai_service_repository.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/repositories/ai_service_repository.dart';
 
 class OpenAIServiceRepository implements AIServiceRepository {
   final Dio _dio;
@@ -28,6 +27,7 @@ class OpenAIServiceRepository implements AIServiceRepository {
     required String conversationId,
     required List<ChatMessage> conversationHistory,
     required String userMessage,
+    required String language,
   }) async {
     try {
       // Buscar informações do contato através do histórico

@@ -1,4 +1,4 @@
-name: language_chat
+name: langchat
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -60,7 +60,25 @@ dependencies:
   # Utils
   uuid: ^4.2.1
   intl: ^0.19.0
+  speech_to_text: ^7.3.0
+  flutter_launcher_icons: ^0.14.4
 
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "lib/assets/images/icon.png"
+  web:
+    generate: true
+    image_path: "lib/assets/images/icon.png"
+    background_color: "#0175C2" # Cor de fundo do seu manifest.json
+    theme_color: "#0175C2"     # Cor do tema do seu manifest.json
+  windows:
+    generate: true
+    image_path: "lib/assets/images/icon.png"
+    icon_size: 48 # min: 16, max: 256
+  macos:
+    generate: true
+    image_path: "lib/assets/images/icon.png"
 
 dev_dependencies:
   flutter_test:

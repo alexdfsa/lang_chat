@@ -1,10 +1,11 @@
-import 'package:language_chat/core/ai_config.dart';
-import 'package:language_chat/core/environment_config.dart';
-import 'package:language_chat/data/repositories/claude_service_repository.dart';
-import 'package:language_chat/data/repositories/groq_service_repository.dart';
-import 'package:language_chat/data/repositories/mock_ai_service_repository.dart';
-import 'package:language_chat/data/repositories/openai_service_repository.dart';
-import 'package:language_chat/domain/repositories/ai_service_repository.dart';
+import 'package:langchat/core/environment_config.dart';
+import 'package:langchat/data/repositories/claude_service_repository.dart';
+import 'package:langchat/data/repositories/groq_service_repository.dart';
+import 'package:langchat/data/repositories/mock_ai_service_repository.dart';
+import 'package:langchat/data/repositories/openai_service_repository.dart';
+import 'package:langchat/domain/repositories/ai_service_repository.dart';
+
+import 'ai_config.dart';
 
 class AIFactory {
   static AIServiceRepository createAIService() {

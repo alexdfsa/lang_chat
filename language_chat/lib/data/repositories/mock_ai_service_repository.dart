@@ -1,7 +1,7 @@
-import 'package:language_chat/core/dependency_injection.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
-import 'package:language_chat/domain/repositories/ai_service_repository.dart';
-import 'package:language_chat/domain/repositories/contact_repository.dart';
+import 'package:langchat/core/dependency_injection.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/repositories/ai_service_repository.dart';
+import 'package:langchat/domain/repositories/contact_repository.dart';
 
 class MockAIServiceRepository implements AIServiceRepository {
   // Respostas por idioma
@@ -162,6 +162,7 @@ class MockAIServiceRepository implements AIServiceRepository {
     required String conversationId,
     required List<ChatMessage> conversationHistory,
     required String userMessage,
+    required String language,
   }) async {
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));

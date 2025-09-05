@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/presentation/signals/chat_signals.dart';
-import 'package:language_chat/presentation/signals/contact_signals.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/presentation/signals/chat_signals.dart';
+import 'package:langchat/presentation/signals/contact_signals.dart';
 
 class ContactDetailsView extends StatelessWidget {
   final VirtualContact contact;
@@ -249,6 +249,8 @@ class ContactDetailsView extends StatelessWidget {
           TextButton(
             onPressed: () async {
               await contactSignals.deleteContact(contact.id);
+              // Recarrega a lista de conversas para refletir a exclusão
+              await chatSignals.loadConversations();
               if (context.mounted) {
                 Navigator.pop(context); // Close dialog
                 Navigator.pop(context); // Go back to previous screen

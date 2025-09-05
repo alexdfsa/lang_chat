@@ -1,6 +1,6 @@
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/domain/usecases/base_usecase.dart';
-import 'package:language_chat/domain/usecases/contact_usecases.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/domain/usecases/base_usecase.dart';
+import 'package:langchat/domain/usecases/contact_usecases.dart';
 import 'package:signals/signals.dart';
 
 class ContactSignals {

@@ -1,7 +1,9 @@
 import 'dart:convert';
+
 import 'package:dio/dio.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
-import 'package:language_chat/domain/repositories/ai_service_repository.dart';
+import 'package:langchat/core/environment_config.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/repositories/ai_service_repository.dart';
 
 class GroqServiceRepository implements AIServiceRepository {
   final Dio _dio;
@@ -9,21 +11,18 @@ class GroqServiceRepository implements AIServiceRepository {
 
   // Groq API Configuration - MODELOS ATUALIZADOS
   static const String _baseUrl = 'https://api.groq.com/openai/v1';
-  static const String _defaultModel =
-      'llama-3.1-8b-instant'; // ✅ NOVO MODELO PADRÃO
-
-  // ✅ Modelos disponíveis atualizados (Janeiro 2025)
-  static const Map<String, String> availableModels = {
-    'fast': 'llama-3.1-8b-instant', // Rápido para produção
-    'smart': 'llama-3.1-70b-versatile', // Mais inteligente
-    'vision': 'llama-3.2-11b-vision-preview', // Com visão (futuro)
-    'context': 'mixtral-8x7b-32768', // Contexto grande
-    'tiny': 'llama-3.2-3b-preview', // Muito rápido
-  };
+  static const String _defaultModel = 'llama-3.1-8b-instant';
 
   GroqServiceRepository({required String apiKey})
     : _apiKey = apiKey,
       _dio = Dio() {
+    print(
+      '🔧 Inicializando GroqServiceRepository com API key: ${_apiKey.substring(0, 10)}...',
+    ); // Debug
+    print(
+      '🦙 Modelo configurado no .env: ${EnvironmentConfig.groqModel}',
+    ); // Debug
+
     _dio.options.baseUrl = _baseUrl;
     _dio.options.headers = {
       'Content-Type': 'application/json',
@@ -31,14 +30,19 @@ class GroqServiceRepository implements AIServiceRepository {
     };
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
+    _dio.options.sendTimeout = const Duration(seconds: 30);
 
-    // Interceptor para debug
+    // Interceptor para debug melhorado
     _dio.interceptors.add(
       LogInterceptor(
-        requestBody: false, // Menos verbose
-        responseBody: false,
-        logPrint: (obj) =>
-            print('🦙 Groq: ${obj.toString().substring(0, 100)}...'),
+        requestBody: true,
+        responseBody: true,
+        requestHeader: true,
+        responseHeader: false,
+        error: true,
+        logPrint: (obj) {
+          print('🔍 DIO LOG: $obj');
+        },
       ),
     );
   }
@@ -49,151 +53,132 @@ class GroqServiceRepository implements AIServiceRepository {
     required String conversationId,
     required List<ChatMessage> conversationHistory,
     required String userMessage,
+    required String language,
   }) async {
     try {
-      print('🚀 Enviando para Groq Llama 3.1: "$userMessage"'); // Debug
+      print('🚀 [GROQ] Enviando mensagem: "$userMessage"'); // Debug
 
-      // Extrair informações do contato
-      final contactLanguage =
-          _extractLanguageFromHistory(conversationHistory) ?? 'Português';
+      // Validar API key
+      if (_apiKey.isEmpty ||
+          _apiKey.contains('SUA_CHAVE') ||
+          _apiKey.contains('YOUR_')) {
+        throw Exception('API Key do Groq não configurada corretamente');
+      }
+
+      // Usar o idioma fornecido e extrair a personalidade do histórico
       final contactPersonality =
           _extractPersonalityFromHistory(conversationHistory) ?? 'Amigável';
 
-      // Usar modelo da configuração ou padrão
-      final model = _getModelFromConfig();
-      print('🦙 Usando modelo: $model'); // Debug
+      print(
+        '🌐 Idioma: $language, Personalidade: $contactPersonality',
+      ); // Debug
 
-      // Criar prompt otimizado para Llama 3.1
-      final systemPrompt = _createSystemPrompt(
-        contactLanguage,
-        contactPersonality,
-      );
+      // Criar prompt otimizado
+      final systemPrompt = _createSystemPrompt(language, contactPersonality);
       final messages = _buildConversationMessages(
         systemPrompt,
         conversationHistory,
         userMessage,
       );
 
-      final response = await _dio.post(
-        '/chat/completions',
-        data: {
-          'model': model,
-          'messages': messages,
-          'max_tokens': 150,
-          'temperature': 0.7,
-          'top_p': 0.9,
-          'frequency_penalty': 0.3,
-          'presence_penalty': 0.6,
-          // Remover stop tokens específicos - usar padrão do modelo
-        },
-      );
+      print('📝 Enviando ${messages.length} mensagens para a API'); // Debug
 
-      final aiResponse = response.data['choices'][0]['message']['content'];
+      final requestData = {
+        'model': _defaultModel,
+        'messages': messages,
+        'max_tokens': 150,
+        'temperature': 0.7,
+        'top_p': 0.9,
+        'frequency_penalty': 0.3,
+        'presence_penalty': 0.6,
+      };
 
-      print(
-        '✅ Resposta do Groq recebida: "${aiResponse.toString().substring(0, 50)}..."',
-      ); // Debug
+      print('📦 Request data: ${jsonEncode(requestData)}'); // Debug
 
-      return ChatMessage(
-        id: 'groq_${DateTime.now().millisecondsSinceEpoch}',
-        chatId: conversationId,
-        senderId: contactId,
-        content: _cleanResponse(aiResponse.trim()),
-        type: MessageType.text,
-        status: MessageStatus.delivered,
-        timestamp: DateTime.now(),
-        isFromUser: false,
-      );
-    } catch (e) {
-      print('❌ Erro no Groq: $e');
+      final response = await _dio.post('/chat/completions', data: requestData);
 
-      if (e is DioException) {
-        print('❌ Detalhes do erro Groq: ${e.response?.data}');
+      print('✅ Status da resposta: ${response.statusCode}'); // Debug
+      print('📄 Resposta completa: ${response.data}'); // Debug
 
-        // Verificar se é erro de modelo descontinuado
-        final errorMessage =
-            e.response?.data?['error']?['message']?.toString() ?? '';
-        if (errorMessage.contains('decommissioned') ||
-            errorMessage.contains('deprecated')) {
-          print(
-            '⚠️ Modelo descontinuado detectado, tentando modelo alternativo...',
-          );
-          return await _retryWithFallbackModel(
-            contactId,
-            conversationId,
-            conversationHistory,
-            userMessage,
-          );
+      if (response.statusCode == 200 && response.data != null) {
+        final choices = response.data['choices'];
+        if (choices != null && choices.isNotEmpty) {
+          final content = choices[0]['message']['content'];
+          if (content != null) {
+            final cleanContent = _cleanResponse(content.toString().trim());
+            print('🎯 Resposta limpa: "$cleanContent"'); // Debug
+
+            return ChatMessage(
+              id: 'groq_${DateTime.now().millisecondsSinceEpoch}',
+              chatId: conversationId,
+              senderId: contactId,
+              content: cleanContent,
+              type: MessageType.text,
+              status: MessageStatus.delivered,
+              timestamp: DateTime.now(),
+              isFromUser: false,
+            );
+          }
         }
+        throw Exception('Resposta da API inválida - sem conteúdo');
+      } else {
+        throw Exception('Status code inválido: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      print('❌ [GROQ] DioException capturada:');
+      print('   Type: ${e.type}');
+      print('   Message: ${e.message}');
+      print('   Error: ${e.error}');
+      print('   RequestOptions: ${e.requestOptions.uri}');
+      print('   Response StatusCode: ${e.response?.statusCode}');
+      print('   Response Data: ${e.response?.data}');
+
+      // Tratamento específico por tipo de erro
+      String errorMessage;
+      switch (e.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.receiveTimeout:
+          errorMessage = 'Timeout na conexão com Groq. Verifique sua internet.';
+          break;
+        case DioExceptionType.badResponse:
+          if (e.response?.statusCode == 401) {
+            errorMessage =
+                'API Key do Groq inválida. Verifique suas credenciais.';
+          } else if (e.response?.statusCode == 429) {
+            errorMessage =
+                'Limite de requisições excedido. Tente novamente em alguns segundos.';
+          } else {
+            errorMessage = 'Erro do servidor Groq: ${e.response?.statusCode}';
+          }
+          break;
+        case DioExceptionType.unknown:
+          if (e.error.toString().contains('SocketException')) {
+            errorMessage = 'Erro de conexão. Verifique sua internet.';
+          } else {
+            errorMessage = 'Erro de rede desconhecido: ${e.error}';
+          }
+          break;
+        default:
+          errorMessage = 'Erro de conexão com Groq: ${e.message}';
       }
 
-      return _createFallbackResponse(conversationId, contactId, userMessage);
+      print('💬 Erro interpretado: $errorMessage'); // Debug
+      return _createFallbackResponse(
+        conversationId,
+        contactId,
+        userMessage,
+        errorMessage,
+      );
+    } catch (e, stackTrace) {
+      print('❌ [GROQ] Erro inesperado: $e');
+      print('📍 StackTrace: $stackTrace');
+      return _createFallbackResponse(
+        conversationId,
+        contactId,
+        userMessage,
+        'Erro inesperado: $e',
+      );
     }
-  }
-
-  // ✅ Método para tentar modelo alternativo se o atual falhar
-  Future<ChatMessage> _retryWithFallbackModel(
-    String contactId,
-    String conversationId,
-    List<ChatMessage> conversationHistory,
-    String userMessage,
-  ) async {
-    final fallbackModels = [
-      'llama-3.1-8b-instant',
-      'llama-3.1-70b-versatile',
-      'mixtral-8x7b-32768',
-      'llama-3.2-3b-preview',
-    ];
-
-    for (final model in fallbackModels) {
-      try {
-        print('🔄 Tentando modelo alternativo: $model');
-
-        final contactLanguage =
-            _extractLanguageFromHistory(conversationHistory) ?? 'Português';
-        final contactPersonality =
-            _extractPersonalityFromHistory(conversationHistory) ?? 'Amigável';
-        final systemPrompt = _createSystemPrompt(
-          contactLanguage,
-          contactPersonality,
-        );
-        final messages = _buildConversationMessages(
-          systemPrompt,
-          conversationHistory,
-          userMessage,
-        );
-
-        final response = await _dio.post(
-          '/chat/completions',
-          data: {
-            'model': model,
-            'messages': messages,
-            'max_tokens': 150,
-            'temperature': 0.7,
-          },
-        );
-
-        final aiResponse = response.data['choices'][0]['message']['content'];
-        print('✅ Sucesso com modelo alternativo: $model');
-
-        return ChatMessage(
-          id: 'groq_fallback_${DateTime.now().millisecondsSinceEpoch}',
-          chatId: conversationId,
-          senderId: contactId,
-          content: _cleanResponse(aiResponse.trim()),
-          type: MessageType.text,
-          status: MessageStatus.delivered,
-          timestamp: DateTime.now(),
-          isFromUser: false,
-        );
-      } catch (e) {
-        print('❌ Modelo $model também falhou: $e');
-        continue;
-      }
-    }
-
-    // Se todos os modelos falharam
-    return _createFallbackResponse(conversationId, contactId, userMessage);
   }
 
   @override
@@ -209,14 +194,11 @@ class GroqServiceRepository implements AIServiceRepository {
 
     try {
       final prompt = _createModeratorPrompt(targetLanguage, recentMessages);
-      final model = _getModelFromConfig(
-        'fast',
-      ); // Usar modelo rápido para dicas
 
       final response = await _dio.post(
         '/chat/completions',
         data: {
-          'model': model,
+          'model': _defaultModel,
           'messages': [
             {'role': 'system', 'content': prompt},
             {
@@ -244,7 +226,7 @@ class GroqServiceRepository implements AIServiceRepository {
         isModerator: true,
       );
     } catch (e) {
-      print('❌ Erro ao gerar dica no Groq: $e');
+      print('❌ [GROQ] Erro ao gerar dica: $e');
       return null;
     }
   }
@@ -255,12 +237,10 @@ class GroqServiceRepository implements AIServiceRepository {
     required String language,
   }) async {
     try {
-      final model = _getModelFromConfig('fast'); // Modelo rápido para moderação
-
       final response = await _dio.post(
         '/chat/completions',
         data: {
-          'model': model,
+          'model': _defaultModel,
           'messages': [
             {
               'role': 'system',
@@ -285,26 +265,13 @@ Seja rigoroso na moderação. Foque na segurança de menores.''',
           .toUpperCase();
       return result.contains('SEGURA');
     } catch (e) {
-      print('❌ Erro na moderação Groq: $e');
+      print('❌ [GROQ] Erro na moderação: $e');
       // Se der erro, assumir que é seguro
       return true;
     }
   }
 
-  // Métodos auxiliares atualizados
-
-  String _getModelFromConfig([String? preference]) {
-    // Tentar pegar do environment config primeiro
-    try {
-      // Importar EnvironmentConfig se disponível
-      // Por simplicidade, usar modelo padrão
-      return preference != null
-          ? (availableModels[preference] ?? _defaultModel)
-          : _defaultModel;
-    } catch (e) {
-      return _defaultModel;
-    }
-  }
+  // Métodos auxiliares
 
   String _createSystemPrompt(String language, String personality) {
     final languageInstructions = {
@@ -331,13 +298,13 @@ Seja rigoroso na moderação. Foque na segurança de menores.''',
     };
 
     return '''
-Você é um parceiro de conversação especializado em ensino de idiomas usando Llama 3.1.
+Você é um parceiro de conversação especializado em ensino de idiomas.
 
 IDIOMA OBRIGATÓRIO: ${languageInstructions[language] ?? 'Responda em português brasileiro.'}
 
 PERSONALIDADE: ${personalityTraits[personality] ?? 'Seja amigável e acolhedor'}.
 
-INSTRUÇÕES PARA LLAMA 3.1:
+INSTRUÇÕES:
 - Mantenha conversas MUITO naturais e fluentes
 - Corrija erros de forma sutil, sem interromper
 - Faça perguntas engajadoras para manter o diálogo
@@ -359,9 +326,9 @@ OBJETIVO: Ser o melhor parceiro de conversação para aprendizado natural de idi
       {'role': 'system', 'content': systemPrompt},
     ];
 
-    // Adicionar últimas 8 mensagens do histórico
-    final recentHistory = history.length > 8
-        ? history.sublist(history.length - 8)
+    // Adicionar últimas 6 mensagens do histórico (para evitar contexto muito grande)
+    final recentHistory = history.length > 6
+        ? history.sublist(history.length - 6)
         : history;
 
     for (final msg in recentHistory) {
@@ -381,7 +348,7 @@ OBJETIVO: Ser o melhor parceiro de conversação para aprendizado natural de idi
 
   String _createModeratorPrompt(String language, List<ChatMessage> messages) {
     return '''
-Você é um moderador educacional especializado em ensino de $language usando Llama 3.1.
+Você é um moderador educacional especializado em ensino de $language.
 
 Analise a conversa e forneça UMA dica educativa curta e muito prática.
 
@@ -400,7 +367,7 @@ COMECE: Com verbo de ação (Pratique, Use, Experimente, Tente, Foque).''';
   String? _extractLanguageFromHistory(List<ChatMessage> history) {
     if (history.isEmpty) return null;
 
-    for (final message in history.reversed) {
+    for (final message in history.reversed.take(3)) {
       if (!message.isFromUser && !message.isModerator) {
         final content = message.content.toLowerCase();
 
@@ -416,7 +383,7 @@ COMECE: Com verbo de ação (Pratique, Use, Experimente, Tente, Foque).''';
             content.contains('español')) {
           return 'Espanhol';
         }
-        // ... outros idiomas
+        // Adicionar outros idiomas conforme necessário
       }
     }
 
@@ -427,7 +394,7 @@ COMECE: Com verbo de ação (Pratique, Use, Experimente, Tente, Foque).''';
     if (history.isEmpty) return null;
 
     final recentMessages = history
-        .take(5)
+        .take(3)
         .map((m) => m.content.toLowerCase())
         .join(' ');
 
@@ -447,29 +414,63 @@ COMECE: Com verbo de ação (Pratique, Use, Experimente, Tente, Foque).''';
   }
 
   String _cleanResponse(String response) {
-    // Limpar possíveis artefatos de resposta
+    // Limpar possíveis artefatos de resposta do Llama
     return response
         .replaceAll('<|eot_id|>', '')
         .replaceAll('<|start_header_id|>', '')
         .replaceAll('<|end_header_id|>', '')
         .replaceAll('<|begin_of_text|>', '')
+        .replaceAll('</s>', '')
+        .replaceAll('<s>', '')
         .trim();
   }
 
-  ChatMessage _createFallbackResponse(
+  Future<ChatMessage> _createFallbackResponse(
     String conversationId,
     String contactId,
     String userMessage,
-  ) {
-    const fallbackResponses = [
-      'Desculpe, tive um problema técnico. Pode repetir?',
-      'Não consegui processar sua mensagem. Vamos tentar novamente?',
-      'Houve um erro na conexão. Como posso ajudá-lo?',
-      'Problema temporário no servidor. Continue nossa conversa!',
-    ];
+    String errorDetail,
+  ) async {
+    // Respostas de fallback melhoradas baseadas no idioma detectado
+    Map<String, List<String>> fallbackResponses = {
+      'pt': [
+        'Desculpe, tive um problema técnico. Pode repetir sua mensagem?',
+        'Não consegui processar sua mensagem. Vamos tentar novamente?',
+        'Houve um erro na conexão. Como posso ajudá-lo?',
+        'Problema temporário no servidor. Continue nossa conversa!',
+      ],
+      'en': [
+        'Sorry, I had a technical problem. Could you repeat your message?',
+        'I couldn\'t process your message. Shall we try again?',
+        'There was a connection error. How can I help you?',
+        'Temporary server issue. Let\'s continue our conversation!',
+      ],
+      'es': [
+        'Disculpa, tuve un problema técnico. ¿Puedes repetir tu mensaje?',
+        'No pude procesar tu mensaje. ¿Intentamos de nuevo?',
+        'Hubo un error de conexión. ¿Cómo puedo ayudarte?',
+        'Problema temporal del servidor. ¡Continuemos nuestra conversación!',
+      ],
+    };
 
-    final randomResponse =
-        fallbackResponses[DateTime.now().second % fallbackResponses.length];
+    // Detectar idioma baseado na mensagem do usuário
+    String lang = 'pt'; // padrão
+    if (userMessage.toLowerCase().contains(
+      RegExp(r'\b(hello|hi|how|what|the|and)\b'),
+    )) {
+      lang = 'en';
+    } else if (userMessage.toLowerCase().contains(
+      RegExp(r'\b(hola|cómo|qué|el|la|y)\b'),
+    )) {
+      lang = 'es';
+    }
+
+    final responses = fallbackResponses[lang] ?? fallbackResponses['pt']!;
+    final randomResponse = responses[DateTime.now().second % responses.length];
+
+    print(
+      '🔄 Usando resposta de fallback: "$randomResponse" (Erro: $errorDetail)',
+    ); // Debug
 
     return ChatMessage(
       id: 'groq_fallback_${DateTime.now().millisecondsSinceEpoch}',

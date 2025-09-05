@@ -1,19 +1,18 @@
 // lib/core/dependency_injection.dart
 import 'package:get_it/get_it.dart';
-import 'package:language_chat/core/ai_factory.dart';
-import '../data/repositories/local_contact_repository.dart';
-import '../data/repositories/local_chat_repository.dart';
-import '../data/repositories/mock_ai_service_repository.dart';
-import '../data/repositories/flutter_sound_audio_repository.dart';
-import '../domain/repositories/contact_repository.dart';
-import '../domain/repositories/chat_repository.dart';
-import '../domain/repositories/ai_service_repository.dart';
-import '../domain/repositories/audio_repository.dart';
-import '../domain/usecases/contact_usecases.dart';
-import '../domain/usecases/chat_usecases.dart';
-import '../presentation/signals/contact_signals.dart';
-import '../presentation/signals/chat_signals.dart';
-import '../presentation/signals/audio_signals.dart';
+import 'package:langchat/core/ai_factory.dart';
+import 'package:langchat/data/repositories/flutter_sound_audio_repository.dart';
+import 'package:langchat/data/repositories/local_chat_repository.dart';
+import 'package:langchat/data/repositories/local_contact_repository.dart';
+import 'package:langchat/domain/repositories/ai_service_repository.dart';
+import 'package:langchat/domain/repositories/audio_repository.dart';
+import 'package:langchat/domain/repositories/chat_repository.dart';
+import 'package:langchat/domain/repositories/contact_repository.dart';
+import 'package:langchat/domain/usecases/chat_usecases.dart';
+import 'package:langchat/domain/usecases/contact_usecases.dart';
+import 'package:langchat/presentation/signals/audio_signals.dart';
+import 'package:langchat/presentation/signals/chat_signals.dart';
+import 'package:langchat/presentation/signals/contact_signals.dart';
 
 final getIt = GetIt.instance;
 
@@ -49,7 +48,10 @@ Future<void> setupDependencyInjection() async {
     () => UpdateContactUseCase(getIt<ContactRepository>()),
   );
   getIt.registerLazySingleton(
-    () => DeleteContactUseCase(getIt<ContactRepository>()),
+    () => DeleteContactUseCase(
+      getIt<ContactRepository>(),
+      getIt<ChatRepository>(),
+    ),
   );
 
   // Use Cases - Chat
@@ -66,6 +68,7 @@ Future<void> setupDependencyInjection() async {
     () => SendAudioMessageUseCase(
       getIt<ChatRepository>(),
       getIt<AIServiceRepository>(),
+      getIt<SendMessageUseCase>(),
     ),
   );
   getIt.registerLazySingleton(
@@ -73,6 +76,9 @@ Future<void> setupDependencyInjection() async {
   );
   getIt.registerLazySingleton(
     () => GetMessagesUseCase(getIt<ChatRepository>()),
+  );
+  getIt.registerLazySingleton(
+    () => ClearConversationUseCase(getIt<ChatRepository>()),
   );
 
   // Signals
@@ -92,6 +98,7 @@ Future<void> setupDependencyInjection() async {
       sendAudioMessageUseCase: getIt<SendAudioMessageUseCase>(),
       getConversationsUseCase: getIt<GetConversationsUseCase>(),
       getMessagesUseCase: getIt<GetMessagesUseCase>(),
+      clearConversationUseCase: getIt<ClearConversationUseCase>(),
     ),
   );
 

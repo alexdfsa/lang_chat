@@ -1,4 +1,4 @@
-import 'package:language_chat/domain/entities/virtual_contact.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
 
 abstract class ContactRepository {
   Future<List<VirtualContact>> getAllContacts();

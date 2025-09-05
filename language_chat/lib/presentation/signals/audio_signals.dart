@@ -1,4 +1,6 @@
-import 'package:language_chat/domain/repositories/audio_repository.dart';
+import 'dart:async';
+
+import 'package:langchat/domain/repositories/audio_repository.dart';
 import 'package:signals/signals.dart';
 
 class AudioSignals {
@@ -15,6 +17,8 @@ class AudioSignals {
   final _playbackPosition = signal<Duration>(Duration.zero);
   final _hasPermissions = signal<bool>(false);
   final _error = signal<String?>(null);
+
+  Timer? _recordingTimer;
 
   // Getters
   ReadonlySignal<bool> get isRecording => _isRecording.readonly();
@@ -82,6 +86,7 @@ class AudioSignals {
 
     try {
       final filePath = await _audioRepository.stopRecording();
+      _recordingTimer?.cancel();
       _isRecording.value = false;
 
       return filePath;
@@ -119,28 +124,30 @@ class AudioSignals {
   }
 
   void _trackRecordingDuration() {
-    if (!_isRecording.value) return;
-
-    final startTime = DateTime.now();
-
-    Stream.periodic(const Duration(milliseconds: 100)).listen((_) {
-      if (_isRecording.value) {
-        _recordingDuration.value = DateTime.now().difference(startTime);
+    _recordingTimer?.cancel();
+    _recordingDuration.value = Duration.zero;
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!_isRecording.value) {
+        timer.cancel();
+      } else {
+        _recordingDuration.value = Duration(
+          seconds: _recordingDuration.value.inSeconds + 1,
+        );
       }
     });
   }
 
   void _trackPlaybackPosition() {
-    _audioRepository.getPlaybackPosition().listen((position) {
-      if (_isPlaying.value) {
-        _playbackPosition.value = position;
-      }
-    });
-
     _audioRepository.getPlayingState().listen((playing) {
       _isPlaying.value = playing;
       if (!playing) {
         _playbackPosition.value = Duration.zero;
+      }
+    });
+
+    _audioRepository.getPlaybackPosition().listen((position) {
+      if (_isPlaying.value) {
+        _playbackPosition.value = position;
       }
     });
   }
@@ -150,6 +157,7 @@ class AudioSignals {
   }
 
   void reset() {
+    _recordingTimer?.cancel();
     _isRecording.value = false;
     _isPlaying.value = false;
     _recordingPath.value = null;

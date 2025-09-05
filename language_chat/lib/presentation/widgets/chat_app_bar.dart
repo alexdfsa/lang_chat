@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/domain/entities/virtual_contact.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VirtualContact contact;
   final VoidCallback onBack;
+  final void Function(String) onActionSelected;
 
-  const ChatAppBar({super.key, required this.contact, required this.onBack});
+  const ChatAppBar({
+    super.key,
+    required this.contact,
+    required this.onBack,
+    required this.onActionSelected,
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -97,7 +103,18 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         PopupMenuButton(
           icon: const Icon(Icons.more_vert),
-          itemBuilder: (context) => [
+          itemBuilder: (context) => <PopupMenuEntry<String>>[
+            const PopupMenuItem(
+              value: 'clear_chat',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_sweep),
+                  SizedBox(width: 8),
+                  Text('Limpar conversa'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
             PopupMenuItem(
               value: 'contact_info',
               child: const Row(
@@ -119,24 +136,9 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ],
-          onSelected: (value) => _handleMenuAction(context, value),
+          onSelected: onActionSelected,
         ),
       ],
     );
-  }
-
-  void _handleMenuAction(BuildContext context, String action) {
-    switch (action) {
-      case 'contact_info':
-        Navigator.pushNamed(context, '/contact-details', arguments: contact);
-        break;
-      case 'block':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Funcionalidade de bloqueio será implementada'),
-          ),
-        );
-        break;
-    }
   }
 }

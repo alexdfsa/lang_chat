@@ -1,10 +1,11 @@
-import 'package:language_chat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
 
 abstract class AIServiceRepository {
   Future<ChatMessage> generateContactResponse({
     required String contactId,
     required String conversationId,
     required List<ChatMessage> conversationHistory,
+    required String language,
     required String userMessage,
   });
 

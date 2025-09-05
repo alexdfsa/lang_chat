@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
-import 'package:language_chat/presentation/signals/audio_signals.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
+import 'package:langchat/presentation/signals/audio_signals.dart';
 
 class MessageListWidget extends StatelessWidget {
   final List<ChatMessage> messages;
@@ -39,13 +39,21 @@ class MessageListWidget extends StatelessWidget {
       );
     }
 
+    // Para um comportamento de chat correto, a lista deve ser invertida.
+    // Isso faz com que o ListView comece do final, mantendo a última mensagem visível,
+    // especialmente quando o teclado aparece.
+    final reversedMessages = messages.reversed.toList();
+
     return ListView.builder(
       controller: scrollController,
-      padding: const EdgeInsets.all(8),
-      itemCount: messages.length,
+      reverse: true,
+      padding: const EdgeInsets.all(8.0),
+      itemCount: reversedMessages.length,
       itemBuilder: (context, index) {
-        final message = messages[index];
-        final previousMessage = index > 0 ? messages[index - 1] : null;
+        final message = reversedMessages[index];
+        final previousMessage = index < reversedMessages.length - 1
+            ? reversedMessages[index + 1]
+            : null;
         final showDateSeparator = _shouldShowDateSeparator(
           message,
           previousMessage,

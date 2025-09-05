@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>language_chat</string>
+	<string>LangChat</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -47,5 +47,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Este app precisa do microfone para gravar mensagens de áudio</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Permissão para reconhecimento de voz para transcrever suas mensagens.</string>
+
 </dict>
 </plist>

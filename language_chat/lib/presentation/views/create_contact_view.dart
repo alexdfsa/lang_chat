@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/presentation/signals/contact_signals.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/presentation/signals/contact_signals.dart';
 import 'package:uuid/uuid.dart';
 
 class CreateContactView extends StatefulWidget {
@@ -178,7 +178,7 @@ class _CreateContactViewState extends State<CreateContactView> {
 
               // Nationality Dropdown
               DropdownButtonFormField<String>(
-                value: _selectedNationality,
+                initialValue: _selectedNationality,
                 decoration: const InputDecoration(
                   labelText: 'Nacionalidade',
                   border: OutlineInputBorder(),
@@ -201,7 +201,7 @@ class _CreateContactViewState extends State<CreateContactView> {
 
               // Language Dropdown
               DropdownButtonFormField<String>(
-                value: _selectedLanguage,
+                initialValue: _selectedLanguage,
                 decoration: const InputDecoration(
                   labelText: 'Idioma',
                   border: OutlineInputBorder(),
@@ -252,7 +252,7 @@ class _CreateContactViewState extends State<CreateContactView> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _selectedGender,
+                      initialValue: _selectedGender,
                       decoration: const InputDecoration(
                         labelText: 'Gênero',
                         border: OutlineInputBorder(),
@@ -277,7 +277,7 @@ class _CreateContactViewState extends State<CreateContactView> {
 
               // Temperament Dropdown
               DropdownButtonFormField<String>(
-                value: _selectedTemperament,
+                initialValue: _selectedTemperament,
                 decoration: const InputDecoration(
                   labelText: 'Temperamento',
                   border: OutlineInputBorder(),

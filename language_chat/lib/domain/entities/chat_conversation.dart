@@ -1,4 +1,4 @@
-import 'package:language_chat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
 
 class ChatConversation {
   final String id;
