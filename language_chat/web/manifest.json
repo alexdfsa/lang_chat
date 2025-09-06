@@ -1,6 +1,6 @@
 {
-    "name": "language_chat",
-    "short_name": "language_chat",
+    "name": "LangChat",
+    "short_name": "LangChat",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

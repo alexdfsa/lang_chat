@@ -2,24 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:language_chat/core/hive_cleanup_helper.dart';
-import 'core/dependency_injection.dart';
+import 'package:langchat/core/hive_cleanup_helper.dart';
 
-// lib/main.dart
-import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'core/dependency_injection.dart';
-import 'presentation/views/home_view.dart';
-import 'presentation/views/chat_view.dart';
-import 'presentation/views/create_contact_view.dart';
-import 'presentation/views/contact_details_view.dart';
 import 'domain/entities/virtual_contact.dart';
+import 'presentation/views/chat_view.dart';
+import 'presentation/views/contact_details_view.dart';
+import 'presentation/views/create_contact_view.dart';
+import 'presentation/views/home_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize environment variables
   await dotenv.load(fileName: ".env");
 
   // Initialize Hive

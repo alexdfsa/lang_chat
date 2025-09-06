@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/presentation/signals/chat_signals.dart';
-import 'package:language_chat/presentation/signals/contact_signals.dart';
-import 'package:language_chat/presentation/widgets/contact_list_widget.dart';
-import 'package:language_chat/presentation/widgets/conversation_list_widget.dart';
-import 'package:language_chat/presentation/widgets/floating_action_menu.dart';
-
+import 'package:langchat/presentation/signals/chat_signals.dart';
+import 'package:langchat/presentation/signals/contact_signals.dart';
+import 'package:langchat/presentation/widgets/contact_list_widget.dart';
+import 'package:langchat/presentation/widgets/conversation_list_widget.dart';
+import 'package:langchat/presentation/widgets/floating_action_menu.dart';
 import 'package:signals/signals_flutter.dart';
 
 class HomeView extends StatefulWidget {

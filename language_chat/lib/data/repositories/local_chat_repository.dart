@@ -1,7 +1,7 @@
 import 'package:hive/hive.dart';
-import 'package:language_chat/domain/entities/chat_conversation.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
-import 'package:language_chat/domain/repositories/chat_repository.dart';
+import 'package:langchat/domain/entities/chat_conversation.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/repositories/chat_repository.dart';
 
 class LocalChatRepository implements ChatRepository {
   static const String _conversationsBoxName = 'conversations';
@@ -108,9 +108,26 @@ class LocalChatRepository implements ChatRepository {
     ChatConversation conversation,
   ) async {
     try {
-      await _conversationsBox.put(conversation.id, conversation.toJson());
+      // Crie uma versão da conversa SEM a lista de mensagens para salvar no Hive.
+      // Isso evita o erro de serialização e a redundância de dados,
+      // pois as mensagens já são salvas na sua própria caixa.
+      final storableConversation = ChatConversation(
+        id: conversation.id,
+        contactId: conversation.contactId,
+        contactName: conversation.contactName,
+        contactProfileImage: conversation.contactProfileImage,
+        language: conversation.language,
+        createdAt: conversation.createdAt,
+        lastMessageAt: conversation.lastMessageAt,
+        unreadCount: conversation.unreadCount,
+        messages: [], // Garante que a lista de mensagens não seja salva aqui.
+      );
+      await _conversationsBox.put(
+        conversation.id,
+        storableConversation.toJson(),
+      );
       print('✅ Conversa ${conversation.id} atualizada'); // Debug
-      return conversation;
+      return conversation; // Retorna a conversa original (com mensagens) para o estado em memória.
     } catch (e) {
       print('❌ Erro ao atualizar conversa: $e'); // Debug
       rethrow;
@@ -120,13 +137,12 @@ class LocalChatRepository implements ChatRepository {
   @override
   Future<void> deleteConversation(String id) async {
     try {
+      // Primeiro, deleta todas as mensagens associadas a esta conversa
+      await clearMessagesForConversation(id);
+
+      // Depois, deleta a conversa em si
       await _conversationsBox.delete(id);
-      // Also delete all messages for this conversation
-      final messages = await getMessagesForConversation(id);
-      for (final message in messages) {
-        await _messagesBox.delete(message.id);
-      }
-      print('✅ Conversa $id deletada'); // Debug
+      print('✅ Conversa $id e suas mensagens foram deletadas'); // Debug
     } catch (e) {
       print('❌ Erro ao deletar conversa: $e'); // Debug
       rethrow;
@@ -189,6 +205,26 @@ class LocalChatRepository implements ChatRepository {
       return message;
     } catch (e) {
       print('❌ Erro ao adicionar mensagem: $e'); // Debug
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> clearMessagesForConversation(String conversationId) async {
+    try {
+      final messagesToDelete = <dynamic>[];
+      for (final key in _messagesBox.keys) {
+        final message = _messagesBox.get(key) as Map?;
+        if (message != null && message['chatId'] == conversationId) {
+          messagesToDelete.add(key);
+        }
+      }
+      await _messagesBox.deleteAll(messagesToDelete);
+      print('✅ Mensagens da conversa $conversationId limpas.'); // Debug
+    } catch (e) {
+      print(
+        '❌ Erro ao limpar mensagens da conversa $conversationId: $e',
+      ); // Debug
       rethrow;
     }
   }

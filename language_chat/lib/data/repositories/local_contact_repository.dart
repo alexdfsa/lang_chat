@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/domain/repositories/contact_repository.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/domain/repositories/contact_repository.dart';
 
 class LocalContactRepository implements ContactRepository {
   static const String _boxName = 'contacts';

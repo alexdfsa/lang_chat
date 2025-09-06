@@ -1,6 +1,7 @@
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/domain/repositories/contact_repository.dart';
-import 'package:language_chat/domain/usecases/base_usecase.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/domain/repositories/chat_repository.dart';
+import 'package:langchat/domain/repositories/contact_repository.dart';
+import 'package:langchat/domain/usecases/base_usecase.dart';
 
 class CreateContactUseCase
     extends BaseUseCase<VirtualContact, CreateContactParams> {
@@ -49,13 +50,25 @@ class UpdateContactParams {
 }
 
 class DeleteContactUseCase extends BaseUseCase<void, DeleteContactParams> {
-  final ContactRepository repository;
+  final ContactRepository contactRepository;
+  final ChatRepository chatRepository;
 
-  DeleteContactUseCase(this.repository);
+  DeleteContactUseCase(this.contactRepository, this.chatRepository);
 
   @override
-  Future<void> call(DeleteContactParams params) {
-    return repository.deleteContact(params.contactId);
+  Future<void> call(DeleteContactParams params) async {
+    // 1. Encontrar a conversa associada ao contato
+    final conversation = await chatRepository.getConversationByContactId(
+      params.contactId,
+    );
+
+    // 2. Se a conversa existir, deletá-la (isso também apaga as mensagens)
+    if (conversation != null) {
+      await chatRepository.deleteConversation(conversation.id);
+    }
+
+    // 3. Deletar o contato
+    await contactRepository.deleteContact(params.contactId);
   }
 }
 

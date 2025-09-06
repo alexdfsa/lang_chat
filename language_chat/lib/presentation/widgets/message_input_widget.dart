@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/presentation/signals/audio_signals.dart';
-import 'package:language_chat/presentation/signals/chat_signals.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/presentation/signals/audio_signals.dart';
+import 'package:langchat/presentation/signals/chat_signals.dart';
 import 'package:signals/signals_flutter.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 class MessageInputWidget extends StatefulWidget {
   final VirtualContact contact;
@@ -24,16 +24,30 @@ class MessageInputWidget extends StatefulWidget {
 class _MessageInputWidgetState extends State<MessageInputWidget> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  final SpeechToText _speechToText = SpeechToText();
+
+  bool _isListening = false;
+  bool _speechEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    widget.audioSignals.requestPermissions();
+    _initSpeech();
 
     // Sincronizar controller com signal
     _controller.addListener(() {
       widget.chatSignals.updateTypingMessage(_controller.text);
     });
+  }
+
+  void _initSpeech() async {
+    // Não precisamos mais do audioSignals para permissão, o speech_to_text cuida disso.
+    _speechEnabled = await _speechToText.initialize(
+      onError: (error) => print('SpeechToText Error: $error'),
+      onStatus: (status) =>
+          setState(() => _isListening = _speechToText.isListening),
+    );
+    setState(() {});
   }
 
   @override
@@ -60,13 +74,12 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
       ),
       child: SafeArea(
         child: Watch((context) {
-          final isRecording = widget.audioSignals.isRecording.value;
-          final canRecord = widget.audioSignals.canRecord.value;
           final isSending = widget.chatSignals.isSendingMessage.value;
-          final typingMessage = widget.chatSignals.typingMessage.value;
+          final canSend = widget.chatSignals.canSendMessage.value;
 
-          if (isRecording) {
-            return _buildRecordingInterface();
+          // Se estiver ouvindo, mostre a interface de escuta.
+          if (_isListening) {
+            return _buildListeningInterface();
           }
 
           return Row(
@@ -75,9 +88,13 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
               IconButton(
                 icon: Icon(
                   Icons.mic,
-                  color: canRecord ? const Color(0xFF128C7E) : Colors.grey,
+                  color: _speechEnabled
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey,
                 ),
-                onPressed: canRecord ? _startRecording : null,
+                onPressed: _speechEnabled
+                    ? (_isListening ? _stopListening : _startListening)
+                    : null,
               ),
 
               // Text input field
@@ -115,8 +132,10 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
               // Send button
               Container(
                 decoration: BoxDecoration(
-                  color: _canSend() && !isSending
-                      ? const Color(0xFF128C7E)
+                  color:
+                      canSend &&
+                          !isSending // Use theme color
+                      ? Theme.of(context).colorScheme.primary
                       : Colors.grey,
                   shape: BoxShape.circle,
                 ),
@@ -131,7 +150,7 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
                           ),
                         )
                       : const Icon(Icons.send, color: Colors.white),
-                  onPressed: _canSend() && !isSending ? _sendMessage : null,
+                  onPressed: canSend && !isSending ? _sendMessage : null,
                 ),
               ),
             ],
@@ -139,10 +158,6 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
         }),
       ),
     );
-  }
-
-  bool _canSend() {
-    return _controller.text.trim().isNotEmpty;
   }
 
   void _sendMessage() async {
@@ -176,121 +191,50 @@ class _MessageInputWidgetState extends State<MessageInputWidget> {
     }
   }
 
-  Widget _buildRecordingInterface() {
-    return Watch((context) {
-      final recordingDuration = widget.audioSignals.recordingDuration.value;
-      final hasPermissions = widget.audioSignals.hasPermissions.value;
-
-      if (!hasPermissions) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.red[50],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.mic_off, color: Colors.red[700]),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Permissão de microfone necessária para gravação',
-                  style: TextStyle(color: Colors.red[700]),
-                ),
-              ),
-              TextButton(
-                onPressed: () => widget.audioSignals.requestPermissions(),
-                child: const Text('Permitir'),
-              ),
-            ],
-          ),
-        );
-      }
-
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF128C7E).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            // Cancel recording
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.red),
-              onPressed: () {
-                widget.audioSignals.stopRecording();
-                widget.audioSignals.reset();
-              },
-            ),
-
-            // Recording indicator and duration
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Gravando... ${_formatDuration(recordingDuration)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF128C7E),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Send recording
-            IconButton(
-              icon: const Icon(Icons.send, color: Color(0xFF128C7E)),
-              onPressed: _sendAudioMessage,
-            ),
-          ],
-        ),
-      );
+  /// Inicia a escuta do microfone.
+  void _startListening() async {
+    // Primeiro, atualiza a UI para mostrar que está ouvindo.
+    setState(() {
+      _isListening = true;
     });
+
+    await _speechToText.listen(
+      onResult: (result) {
+        _controller.text = result.recognizedWords;
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: _controller.text.length),
+        );
+      },
+      localeId: widget.contact.language, // Usa o idioma do contato!
+    );
   }
 
-  void _startRecording() async {
-    print('🎤 Iniciando gravação'); // Debug
-
-    try {
-      // Gerar um path único para o arquivo de áudio
-      final directory = await getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filePath = '${directory.path}/audio_$timestamp.aac';
-
-      await widget.audioSignals.startRecording(filePath);
-
-      print('🎤 Gravação iniciada: $filePath'); // Debug
-    } catch (e) {
-      print('❌ Erro ao iniciar gravação: $e'); // Debug
-    }
+  /// Para a escuta do microfone.
+  void _stopListening() async {
+    await _speechToText.stop();
+    setState(() {});
   }
 
-  void _sendAudioMessage() async {
-    print('🎵 Enviando mensagem de áudio'); // Debug
-
-    try {
-      final audioPath = await widget.audioSignals.stopRecording();
-      if (audioPath != null) {
-        await widget.chatSignals.sendAudioMessage(audioPath, widget.contact);
-        print('✅ Mensagem de áudio enviada'); // Debug
-      }
-      widget.audioSignals.reset();
-    } catch (e) {
-      print('❌ Erro ao enviar áudio: $e'); // Debug
-    }
+  /// Widget da interface de escuta.
+  Widget _buildListeningInterface() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.mic, color: Colors.red, size: 28),
+          const SizedBox(width: 12),
+          Text(
+            'Ouvindo...',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatDuration(Duration duration) {

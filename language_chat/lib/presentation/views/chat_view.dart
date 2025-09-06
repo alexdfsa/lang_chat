@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/domain/entities/chat_conversation.dart';
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/presentation/signals/audio_signals.dart';
-import 'package:language_chat/presentation/signals/chat_signals.dart';
-import 'package:language_chat/presentation/widgets/chat_app_bar.dart';
-import 'package:language_chat/presentation/widgets/message_input_widget.dart';
-import 'package:language_chat/presentation/widgets/message_list_widget.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/presentation/signals/audio_signals.dart';
+import 'package:langchat/presentation/signals/chat_signals.dart';
+import 'package:langchat/presentation/widgets/chat_app_bar.dart';
+import 'package:langchat/presentation/widgets/message_input_widget.dart';
+import 'package:langchat/presentation/widgets/message_list_widget.dart';
 import 'package:signals/signals_flutter.dart';
 
 class ChatView extends StatefulWidget {
@@ -30,38 +29,18 @@ class _ChatViewState extends State<ChatView> {
   @override
   void initState() {
     super.initState();
-    _ensureConversationExists();
-  }
-
-  void _ensureConversationExists() {
-    print(
-      '🎬 Garantindo que conversa existe para ${widget.contact.name}',
-    ); // Debug
-
-    // Sempre criar uma conversa nova para garantir que funciona
-    final conversationId =
-        'conv_${widget.contact.id}_${DateTime.now().millisecondsSinceEpoch}';
-
-    final conversation = ChatConversation(
-      id: conversationId,
-      contactId: widget.contact.id,
-      contactName: widget.contact.name,
-      contactProfileImage: widget.contact.profileImage,
-      language: widget.contact.language,
-      messages: [],
-      createdAt: DateTime.now(),
-      lastMessageAt: DateTime.now(),
-    );
-
-    // Usar o método setCurrentConversation que já existe
-    widget.chatSignals.setCurrentConversation(conversation);
-
-    print('✅ Conversa garantida: $conversationId'); // Debug
+    // Usar o UseCase para iniciar a conversa de forma correta.
+    // Isso vai buscar uma conversa existente ou criar uma nova,
+    // garantindo que o histórico não seja misturado.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.chatSignals.startConversation(widget.contact);
+    });
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    widget.chatSignals.resetCurrentConversation();
     super.dispose();
   }
 
@@ -69,8 +48,9 @@ class _ChatViewState extends State<ChatView> {
     if (_scrollController.hasClients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
+          // Com a lista invertida, o "final" da lista está na posição 0.0
           _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
+            0.0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
@@ -84,7 +64,11 @@ class _ChatViewState extends State<ChatView> {
     return Scaffold(
       appBar: ChatAppBar(
         contact: widget.contact,
-        onBack: () => Navigator.pop(context),
+        onBack: () {
+          widget.chatSignals.resetCurrentConversation();
+          Navigator.pop(context);
+        },
+        onActionSelected: (action) => _handleMenuAction(context, action),
       ),
       body: Column(
         children: [
@@ -124,6 +108,53 @@ class _ChatViewState extends State<ChatView> {
             contact: widget.contact,
             chatSignals: widget.chatSignals,
             audioSignals: widget.audioSignals,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleMenuAction(BuildContext context, String action) {
+    switch (action) {
+      case 'clear_chat':
+        _showClearChatDialog(context);
+        break;
+      case 'contact_info':
+        Navigator.pushNamed(
+          context,
+          '/contact-details',
+          arguments: widget.contact,
+        );
+        break;
+      case 'block':
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Funcionalidade de bloqueio será implementada'),
+          ),
+        );
+        break;
+    }
+  }
+
+  void _showClearChatDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Limpar conversa?'),
+        content: const Text(
+          'Todas as mensagens desta conversa serão apagadas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              widget.chatSignals.clearCurrentConversation();
+              Navigator.pop(context);
+            },
+            child: const Text('Limpar', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

@@ -1,8 +1,8 @@
-import 'package:language_chat/domain/entities/chat_conversation.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
-import 'package:language_chat/domain/repositories/ai_service_repository.dart';
-import 'package:language_chat/domain/repositories/chat_repository.dart';
-import 'package:language_chat/domain/usecases/base_usecase.dart';
+import 'package:langchat/domain/entities/chat_conversation.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/repositories/ai_service_repository.dart';
+import 'package:langchat/domain/repositories/chat_repository.dart';
+import 'package:langchat/domain/usecases/base_usecase.dart';
 
 class StartConversationUseCase
     extends BaseUseCase<ChatConversation, StartConversationParams> {
@@ -100,6 +100,7 @@ class SendMessageUseCase extends BaseUseCase<ChatMessage, SendMessageParams> {
       conversationId: params.message.chatId,
       conversationHistory: messages,
       userMessage: params.message.content,
+      language: params.language,
     );
 
     await chatRepository.addMessage(aiResponse);
@@ -139,8 +140,13 @@ class SendAudioMessageUseCase
     extends BaseUseCase<ChatMessage, SendAudioMessageParams> {
   final ChatRepository chatRepository;
   final AIServiceRepository aiService;
+  final SendMessageUseCase sendMessageUseCase;
 
-  SendAudioMessageUseCase(this.chatRepository, this.aiService);
+  SendAudioMessageUseCase(
+    this.chatRepository,
+    this.aiService,
+    this.sendMessageUseCase,
+  );
 
   @override
   Future<ChatMessage> call(SendAudioMessageParams params) async {
@@ -149,9 +155,6 @@ class SendAudioMessageUseCase
 
     // Create audio message with transcription
     final audioMessage = params.message.copyWith(content: transcription);
-
-    // Use the regular send message flow
-    final sendMessageUseCase = SendMessageUseCase(chatRepository, aiService);
 
     return await sendMessageUseCase.call(
       SendMessageParams(
@@ -204,4 +207,21 @@ class GetMessagesUseCase
 class GetMessagesParams {
   final String conversationId;
   GetMessagesParams(this.conversationId);
+}
+
+class ClearConversationUseCase
+    extends BaseUseCase<void, ClearConversationParams> {
+  final ChatRepository repository;
+
+  ClearConversationUseCase(this.repository);
+
+  @override
+  Future<void> call(ClearConversationParams params) async {
+    await repository.clearMessagesForConversation(params.conversationId);
+  }
+}
+
+class ClearConversationParams {
+  final String conversationId;
+  ClearConversationParams(this.conversationId);
 }

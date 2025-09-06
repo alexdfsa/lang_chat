@@ -1,8 +1,8 @@
-import 'package:language_chat/domain/entities/chat_conversation.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/domain/usecases/base_usecase.dart';
-import 'package:language_chat/domain/usecases/chat_usecases.dart';
+import 'package:langchat/domain/entities/chat_conversation.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/domain/usecases/base_usecase.dart';
+import 'package:langchat/domain/usecases/chat_usecases.dart';
 import 'package:signals/signals.dart';
 
 class ChatSignals {
@@ -10,6 +10,7 @@ class ChatSignals {
   final SendMessageUseCase _sendMessageUseCase;
   final SendAudioMessageUseCase _sendAudioMessageUseCase;
   final GetConversationsUseCase _getConversationsUseCase;
+  final ClearConversationUseCase _clearConversationUseCase;
   final GetMessagesUseCase _getMessagesUseCase;
 
   ChatSignals({
@@ -17,11 +18,13 @@ class ChatSignals {
     required SendMessageUseCase sendMessageUseCase,
     required SendAudioMessageUseCase sendAudioMessageUseCase,
     required GetConversationsUseCase getConversationsUseCase,
+    required ClearConversationUseCase clearConversationUseCase,
     required GetMessagesUseCase getMessagesUseCase,
   }) : _startConversationUseCase = startConversationUseCase,
        _sendMessageUseCase = sendMessageUseCase,
        _sendAudioMessageUseCase = sendAudioMessageUseCase,
        _getConversationsUseCase = getConversationsUseCase,
+       _clearConversationUseCase = clearConversationUseCase,
        _getMessagesUseCase = getMessagesUseCase;
 
   // Signals
@@ -326,6 +329,26 @@ class ChatSignals {
     }
   }
 
+  Future<void> clearCurrentConversation() async {
+    final conversation = _currentConversation.value;
+    if (conversation == null) return;
+
+    _isLoading.value = true;
+    try {
+      await _clearConversationUseCase.call(
+        ClearConversationParams(conversation.id),
+      );
+      _messages.value = []; // Limpa a lista na UI
+      // Opcional: atualizar a última mensagem na lista de conversas
+      await loadConversations();
+    } catch (e) {
+      _error.value = 'Erro ao limpar a conversa: $e';
+      print('❌ Erro ao limpar a conversa: $e'); // Debug
+    } finally {
+      _isLoading.value = false;
+    }
+  }
+
   void setCurrentConversation(ChatConversation conversation) {
     _currentConversation.value = conversation;
     loadMessages(conversation.id);
@@ -339,7 +362,7 @@ class ChatSignals {
     _error.value = null;
   }
 
-  void clearCurrentConversation() {
+  void resetCurrentConversation() {
     _currentConversation.value = null;
     _messages.value = [];
     _typingMessage.value = '';

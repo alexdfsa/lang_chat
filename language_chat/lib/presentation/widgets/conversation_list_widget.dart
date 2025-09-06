@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/domain/entities/chat_conversation.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
-import 'package:language_chat/presentation/signals/chat_signals.dart';
-import 'package:language_chat/presentation/signals/contact_signals.dart';
-import 'package:signals/signals_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:langchat/domain/entities/chat_conversation.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
+import 'package:langchat/presentation/signals/chat_signals.dart';
+import 'package:langchat/presentation/signals/contact_signals.dart';
+import 'package:signals/signals_flutter.dart';
 
 class ConversationListWidget extends StatelessWidget {
   final ChatSignals chatSignals;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:language_chat/domain/entities/virtual_contact.dart';
-import 'package:language_chat/presentation/signals/chat_signals.dart';
-import 'package:language_chat/presentation/signals/contact_signals.dart';
+import 'package:langchat/domain/entities/virtual_contact.dart';
+import 'package:langchat/presentation/signals/chat_signals.dart';
+import 'package:langchat/presentation/signals/contact_signals.dart';
 import 'package:signals/signals_flutter.dart';
 
 class ContactListWidget extends StatelessWidget {

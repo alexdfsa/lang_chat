@@ -1,5 +1,5 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:language_chat/core/ai_config.dart';
+import '../core/ai_config.dart';
 
 class EnvironmentConfig {
   static const bool isProduction = bool.fromEnvironment('dart.vm.product');

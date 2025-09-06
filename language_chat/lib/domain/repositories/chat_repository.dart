@@ -1,5 +1,5 @@
-import 'package:language_chat/domain/entities/chat_conversation.dart';
-import 'package:language_chat/domain/entities/chat_message.dart';
+import 'package:langchat/domain/entities/chat_conversation.dart';
+import 'package:langchat/domain/entities/chat_message.dart';
 
 abstract class ChatRepository {
   Future<List<ChatConversation>> getAllConversations();
@@ -13,6 +13,7 @@ abstract class ChatRepository {
   Future<ChatMessage> addMessage(ChatMessage message);
   Future<ChatMessage> updateMessage(ChatMessage message);
   Future<void> deleteMessage(String messageId);
+  Future<void> clearMessagesForConversation(String conversationId);
 
   Stream<List<ChatConversation>> watchConversations();
   Stream<List<ChatMessage>> watchMessages(String conversationId);
